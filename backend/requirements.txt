@@ -2,6 +2,8 @@ fastapi
 uvicorn[standard]
 websockets
 numpy
-soundfile
+sounddevice 
 faster-whisper
 piper-tts
+python-multipart
+google-generativeai
