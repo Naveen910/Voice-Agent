@@ -1,15 +1,21 @@
 from fastapi import APIRouter
-import google.generativeai as genai
+import requests
 
 router = APIRouter()
 
-# Directly configure with your key
-GEMINI_API_KEY = "AIzaSyBgTqN1AiBhiJZHT0CvV1jx-c099r3fMLs"  
-genai.configure(api_key=GEMINI_API_KEY)
-
-model = genai.GenerativeModel("gemini-1.5-flash")
+# Ollama server endpoint
+OLLAMA_API_URL = "http://localhost:11434/api/generate"
+MODEL_NAME = "deepseek-r1:1.5b"  
 
 @router.post("/chat/")
 async def chat_with_ai(prompt: str):
-    response = model.generate_content(prompt)
-    return {"reply": response.text}
+    payload = {
+        "model": MODEL_NAME,
+        "prompt": prompt,
+        "stream": False  # set to True if you want streaming responses
+    }
+
+    response = requests.post(OLLAMA_API_URL, json=payload)
+    data = response.json()
+
+    return {"reply": data.get("response", "")}
