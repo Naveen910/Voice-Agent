@@ -1,9 +1,6 @@
 fastapi
-uvicorn[standard]
+uvicorn
+langchain
+langchain-community
+requests
 websockets
-numpy
-sounddevice 
-faster-whisper
-piper-tts
-python-multipart
-google-generativeai
