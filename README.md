@@ -30,6 +30,7 @@ User (voice): "Schedule a meeting with Naveen tomorrow at 10 AM and send him an 
 - LLM → generates a spoken confirmation: "I’ve scheduled the meeting and sent Rahul an email."
 - TTS → speaks back.
 
+Stack Flow:
 
     Frontend
     🎤 User voice → (STT: Whisper.js / Web Speech API / Vosk WASM / AssemblyAI SDK)
