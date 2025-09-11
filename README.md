@@ -15,7 +15,7 @@
       ↓ (Text-to-Speech, e.g., OpenAI TTS / ElevenLabs)
     🔊 Spoken Output
 
-# Example Flow:
+## Example Flow:
 
 User (voice): "Schedule a meeting with Rahul tomorrow at 10 AM and send him an email confirmation."
 
