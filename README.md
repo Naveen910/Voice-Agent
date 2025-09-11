@@ -17,7 +17,7 @@
 
 ## Example Flow:
 
-User (voice): "Schedule a meeting with Rahul tomorrow at 10 AM and send him an email confirmation."
+User (voice): "Schedule a meeting with Naveen tomorrow at 10 AM and send him an email confirmation."
 
 - Whisper → converts to text.
 - LangChain Agent → interprets the intent.
