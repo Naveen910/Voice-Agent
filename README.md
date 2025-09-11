@@ -1,7 +1,6 @@
 # Voice-Agent
 
 Architecture:
-
     🎤 User (voice)
       ↓ (Speech-to-Text, e.g., Whisper)
 
