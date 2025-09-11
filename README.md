@@ -2,6 +2,7 @@
 
     🎤 User (voice)
       ↓ (Speech-to-Text, e.g., Whisper)
+
     📝 Text Query
       ↓
     🤖 LangChain Agent (LLM + Tools)
@@ -13,6 +14,7 @@
       ↓
     📝 Text Response
       ↓ (Text-to-Speech, e.g., OpenAI TTS / ElevenLabs)
+
     🔊 Spoken Output
 
 ## Example Flow:
