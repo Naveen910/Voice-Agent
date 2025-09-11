@@ -29,3 +29,18 @@ User (voice): "Schedule a meeting with Naveen tomorrow at 10 AM and send him an 
 - Calls Gmail Tool to send confirmation.
 - LLM → generates a spoken confirmation: "I’ve scheduled the meeting and sent Rahul an email."
 - TTS → speaks back.
+
+    Frontend
+    🎤 User voice → (STT: Whisper.js / Web Speech API / Vosk WASM / AssemblyAI SDK)
+       ↓
+    📝 Text query → Sent to Backend
+    
+    Backend
+    🤖 LangChain Agent (LLM + Tools: Calendar, Gmail, DB, APIs, File Search)
+       ↓
+    📝 Text response → Sent back to Frontend
+    
+    Frontend
+    ↓
+    (Text-to-Speech: OpenAI TTS / ElevenLabs / Browser SpeechSynthesis API)
+    🔊 Spoken Output
