@@ -64,7 +64,9 @@ class ChatResponse(BaseModel):
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        reply = agent.run(request.message)
+        result = agent.invoke({"input": request.message})
+        reply = result["output"]
+
         return {"reply": reply}
     except Exception as e:
         return {"reply": f"Error: {str(e)}"}

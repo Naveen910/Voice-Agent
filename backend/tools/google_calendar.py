@@ -33,7 +33,17 @@ def create_event(event_text: str) -> str:
     service = get_calendar_service()
 
     # Try to parse a datetime from the input text
-    parsed_dt = dateparser.parse(event_text, settings={"TIMEZONE": "Asia/Kolkata", "RETURN_AS_TIMEZONE_AWARE": True})
+    parsed_dt = dateparser.parse(
+        event_text,
+        settings={
+            "TIMEZONE": "Asia/Kolkata",
+            "RETURN_AS_TIMEZONE_AWARE": True,
+            "PREFER_DATES_FROM": "future",   # prefer future times
+            "PREFER_DAY_OF_MONTH": "current",
+            "RELATIVE_BASE": datetime.datetime.now(),
+        },
+    )
+
 
     if not parsed_dt:
         # Fallback: just schedule 1h from now
