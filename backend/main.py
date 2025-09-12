@@ -1,40 +1,60 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from langchain_community.llms import Ollama
-from langchain.agents import initialize_agent, Tool
-from langchain.agents import AgentType
+from langchain.agents import initialize_agent, AgentType, ZeroShotAgent
+from langchain.prompts import PromptTemplate
+from tools.google_calendar import google_calendar_tool
 
-# Define API
 app = FastAPI()
 
 # Connect to Ollama
 llm = Ollama(
-    model="deepseek-r1:1.5b", 
+    model="llama3.1:8b-instruct-q2_K",  
     base_url="http://localhost:11434"
 )
 
-# Example Tool (you’ll add more: Gmail, Calendar, DB, File Search)
-def search_files(query: str) -> str:
-    # Replace with actual file search logic
-    return f"Searching local files for: {query}"
-
+# Add tools
 tools = [
-    Tool(
-        name="File Search",
-        func=search_files,
-        description="Useful for searching local documents."
-    )
+    google_calendar_tool,
 ]
 
-# Initialize LangChain Agent
+# Custom prompt for tool usage
+prefix = """You are an AI voice assistant with access to the following tools:
+
+{tools}
+
+When you decide to use a tool, you MUST follow this format exactly:
+
+Thought: [your reasoning]
+Action: the exact tool name from the list above (do not use brackets or quotes)
+Action Input: plain text input for the tool
+
+If no tool is needed, just respond with the final answer.
+"""
+
+suffix = """Begin!
+
+Question: {input}
+{agent_scratchpad}"""
+
+
+prompt = ZeroShotAgent.create_prompt(
+    tools,
+    prefix=prefix,
+    suffix=suffix,
+    input_variables=["input", "agent_scratchpad"],
+)
+
+# LangChain Agent
 agent = initialize_agent(
     tools,
     llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True
+    verbose=True,
+    agent_kwargs={"prompt": prompt},
 )
 
-# Request/Response Schema
+# Request/Response schema
 class ChatRequest(BaseModel):
     message: str
 
@@ -48,7 +68,8 @@ async def chat(request: ChatRequest):
         return {"reply": reply}
     except Exception as e:
         return {"reply": f"Error: {str(e)}"}
-    
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=5000, reload=True)
