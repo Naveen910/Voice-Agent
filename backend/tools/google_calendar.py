@@ -12,8 +12,7 @@ SERVICE_ACCOUNT_FILE = "service_account.json"
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 # Your calendar-agent email must have access to the target calendar
-CALENDAR_ID = "primary"  # or any calendar ID shared with the service account
-
+CALENDAR_ID = "nav.fortesting@gmail.com"  
 def get_calendar_service():
     creds = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES
@@ -64,4 +63,5 @@ google_calendar_tool = Tool(
         "Use this tool to create Google Calendar events. "
         "Input should be a plain text description of the event"
     ),
+    return_direct=True,
 )
