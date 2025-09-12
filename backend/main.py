@@ -23,13 +23,13 @@ prefix = """You are an AI voice assistant with access to the following tools:
 
 {tools}
 
-When you decide to use a tool, you MUST follow this format exactly:
+When you decide to use a tool, you MUST output exactly this format:
 
-Thought: [your reasoning]
-Action: the exact tool name from the list above (do not use brackets or quotes)
-Action Input: plain text input for the tool
+Thought: [reasoning]
+Action: one of {tool_names} (write only the tool name, nothing else)
+Action Input: plain text input for that tool
 
-If no tool is needed, just respond with the final answer.
+Do not invent new actions. If no tool is needed, just reply normally.
 """
 
 suffix = """Begin!
@@ -38,12 +38,15 @@ Question: {input}
 {agent_scratchpad}"""
 
 
+tool_names = ", ".join([t.name for t in tools])
 prompt = ZeroShotAgent.create_prompt(
     tools,
-    prefix=prefix,
+    prefix=prefix.format(tool_names=tool_names, tools="{tools}"),
     suffix=suffix,
     input_variables=["input", "agent_scratchpad"],
 )
+
+
 
 # LangChain Agent
 agent = initialize_agent(
@@ -52,6 +55,7 @@ agent = initialize_agent(
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
     agent_kwargs={"prompt": prompt},
+    handle_parsing_errors=True,
 )
 
 # Request/Response schema
@@ -65,8 +69,7 @@ class ChatResponse(BaseModel):
 async def chat(request: ChatRequest):
     try:
         result = agent.invoke({"input": request.message})
-        reply = result["output"]
-
+        reply = result.get("output", str(result))
         return {"reply": reply}
     except Exception as e:
         return {"reply": f"Error: {str(e)}"}
