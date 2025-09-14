@@ -10,7 +10,7 @@ app = FastAPI()
 
 # Connect to Ollama
 llm = Ollama(
-    model="deepseek-r1:1.5b",  
+    model="llama3.1:8b-instruct-q2_K",  
     base_url="http://localhost:11434"
 )
 

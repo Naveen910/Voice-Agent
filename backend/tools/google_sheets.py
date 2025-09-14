@@ -9,9 +9,13 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 SPREADSHEET_ID = "1Y-YcuDIvVRgud5-IHap_0_ZFqTTqfnEZtZfoOXofE94"
 RANGE_NAME = "Menu!A2:B6"
 
-@tool("google_sheets_menu_tool", return_direct=True)
+@tool("[google_sheets_menu_tool]", return_direct=True)
 def google_sheets_menu_tool(input_str: str) -> str:
-    """Fetch the restaurant menu from Google Sheets."""
+    """
+    Fetches the restaurant menu from Google Sheets.
+    Just pass any string (ignored if not needed).
+    """
+    return fetch_menu_from_google_sheets()
     try:
         creds = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
