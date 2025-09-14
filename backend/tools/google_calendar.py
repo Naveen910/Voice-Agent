@@ -57,7 +57,7 @@ def create_event(event_text: str) -> str:
 
 # Export as LangChain tool
 google_calendar_tool = Tool(
-    name="Google Calendar",
+    name="[Google Calendar]",
     func=lambda x: create_event(x), check_event=True, delete_event=True,
     description=(
         "Use this tool to create Google Calendar events. "

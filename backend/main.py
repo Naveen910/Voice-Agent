@@ -4,44 +4,47 @@ from langchain_community.llms import Ollama
 from langchain.agents import initialize_agent, AgentType, ZeroShotAgent
 from langchain.prompts import PromptTemplate
 from tools.google_calendar import google_calendar_tool
+from tools.google_sheets import google_sheets_menu_tool 
 
 app = FastAPI()
 
 # Connect to Ollama
 llm = Ollama(
-    model="llama3.1:8b-instruct-q2_K",  
+    model="deepseek-r1:1.5b",  
     base_url="http://localhost:11434"
 )
 
-# Add tools
+# Tools for receptionist
 tools = [
-    google_calendar_tool,
+    google_calendar_tool,      
+    google_sheets_menu_tool,   
 ]
 
-# Custom prompt for tool usage
-prefix = """You are an AI voice assistant with access to the following tools:
+# Receptionist-style system prompt
+prefix = """You are an AI receptionist for a restaurant. 
+You can talk to customers and you have access to the following tools:
 
-{tools}
+{tool_names}
 
-When you decide to use a tool, you MUST output exactly this format:
+When you need to use a tool, you MUST follow this exact format (no code, no explanations):
 
-Thought: [reasoning]
-Action: one of {tool_names} (write only the tool name, nothing else)
-Action Input: plain text input for that tool
+Thought: [your reasoning here]
+Action: one of [{tool_names}]
+Action Input: the plain text input for that tool
 
-Do not invent new actions. If no tool is needed, just reply normally.
+If no tool is needed, just answer normally like a human receptionist would.
 """
+
 
 suffix = """Begin!
 
-Question: {input}
+Customer: {input}
 {agent_scratchpad}"""
-
 
 tool_names = ", ".join([t.name for t in tools])
 prompt = ZeroShotAgent.create_prompt(
     tools,
-    prefix=prefix.format(tool_names=tool_names, tools="{tools}"),
+    prefix=prefix.format(tool_names=tool_names),
     suffix=suffix,
     input_variables=["input", "agent_scratchpad"],
 )
@@ -69,11 +72,10 @@ class ChatResponse(BaseModel):
 async def chat(request: ChatRequest):
     try:
         result = agent.invoke({"input": request.message})
-        reply = result.get("output", str(result))
+        reply = result.get("output", "Sorry, I couldn’t process that request.")
         return {"reply": reply}
     except Exception as e:
-        return {"reply": f"Error: {str(e)}"}
-
+        return {"reply": f"Apologies, something went wrong: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
