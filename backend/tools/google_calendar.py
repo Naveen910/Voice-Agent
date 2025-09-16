@@ -6,7 +6,7 @@ import dateparser
 import os
 
 # Path to your service account JSON key
-SERVICE_ACCOUNT_FILE = "service_account.json" 
+SERVICE_ACCOUNT_FILE = "/keys/service_account.json" 
 
 # Scopes
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
