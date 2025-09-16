@@ -1,8 +1,11 @@
 from langchain.tools import tool
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
+import os
 
-SERVICE_ACCOUNT_FILE = "service_account.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, "..", "..", "..", "keys", "service_account.json")
+
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 # Replace with your actual spreadsheetId

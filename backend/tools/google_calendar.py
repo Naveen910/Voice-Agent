@@ -5,8 +5,8 @@ import datetime
 import dateparser
 import os
 
-# Path to your service account JSON key
-SERVICE_ACCOUNT_FILE = "/keys/service_account.json" 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, "..", "..", "..", "keys", "service_account.json")
 
 # Scopes
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
