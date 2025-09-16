@@ -20,7 +20,7 @@ app.add_middleware(
 
 
 llm = Ollama(
-    model="llama3.1:8b-instruct-q2_K",  
+    model="gemma3:4b",  
     base_url="http://localhost:11434"
 )
 
