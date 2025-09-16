@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from langchain_community.llms import Ollama
 from langchain.agents import initialize_agent, AgentType, ZeroShotAgent
@@ -9,7 +10,15 @@ from langchain.memory import ConversationBufferMemory
 
 app = FastAPI()
 
-# Connect to Ollama
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 llm = Ollama(
     model="llama3.1:8b-instruct-q2_K",  
     base_url="http://localhost:11434"
