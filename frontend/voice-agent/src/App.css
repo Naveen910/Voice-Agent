@@ -1,10 +1,29 @@
 /* App.css */
 
+/* Ensure avatar canvas stays inside and transparent */
+.app-container canvas {
+  display: block;
+  margin: 0 auto;
+  background: transparent !important;
+  max-height: 60vh;   /* prevent it from overflowing */
+}
+
+/* Fix body default white background */
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: linear-gradient(to bottom, #0a0f2c, #000000);
+  overflow: hidden;
+}
+
+
 .app-container {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  height: 100vh;        /* full viewport */
   background: linear-gradient(to bottom, #0a0f2c, #000000);
   color: white;
   text-align: center;

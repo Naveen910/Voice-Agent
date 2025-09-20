@@ -1,16 +1,19 @@
 import React, { useState, useRef } from "react";
 import { Mic, X } from "lucide-react";
 import "./App.css";
+import AnimeSpeaker from "./components/AnimeSpeaker";
 
 function App() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
   const recognitionRef = useRef(null);
+  const [audioStream, setAudioStream] = useState(null);
+  const [expression, setExpression] = useState("neutral");
 
   const startListening = () => {
     if (!("webkitSpeechRecognition" in window)) {
-      alert("Your browser doesn't support Speech Recognition.");
+      alert("Your browser doesn’t support Speech Recognition.");
       return;
     }
 
@@ -30,7 +33,6 @@ function App() {
     recognition.onend = async () => {
       setIsListening(false);
       if (transcript) {
-        // send transcript to backend
         const res = await fetch("http://localhost:5000/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -39,9 +41,21 @@ function App() {
         const data = await res.json();
         setResponse(data.reply);
 
-        // Speak back
+        // Pick expression
+        if (data.reply.includes("!")) setExpression("angry");
+        else if (data.reply.match(/great|happy|nice/i)) setExpression("smile");
+        else setExpression("neutral");
+
+        // Generate TTS with Web Audio
+        const audioCtx = new AudioContext();
+        const dest = audioCtx.createMediaStreamDestination();
+        setAudioStream(dest.stream);
+
+        // Example: browser TTS routed to audio element
         const utterance = new SpeechSynthesisUtterance(data.reply);
-        speechSynthesis.speak(utterance);
+        window.speechSynthesis.speak(utterance);
+
+        // Note: For **real-time lip-sync**, use external TTS API streaming to AudioContext
       }
     };
 
@@ -51,34 +65,23 @@ function App() {
   };
 
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    }
+    if (recognitionRef.current) recognitionRef.current.stop();
+    setIsListening(false);
   };
 
   return (
     <div className="app-container">
-      <div className="content">
-        {/* Mic Circle */}
-        <div className="mic-wrapper">
-          <div className={`mic-glow ${isListening ? "active" : ""}`}></div>
-          <div className="mic-inner" onClick={startListening}>
-            <Mic size={48} className="mic-icon" />
-          </div>
-        </div>
+      {/* Avatar */}
+      <AnimeSpeaker audioStream={audioStream} expression={expression} />
 
-        {/* Live Transcript */}
+      
+
         <p className="listening-text">
-          {isListening
-            ? "I'm listening..."
-            : transcript || "Tap the mic and say something"}
+          {isListening ? "I'm listening..." : transcript || "Tap the mic and say something"}
         </p>
 
-        {/* Agent Response */}
         {response && <p className="response-text">🤖 {response}</p>}
 
-        {/* Buttons */}
         <div className="button-group">
           <button className="circle-button" onClick={stopListening}>
             <X size={20} />
@@ -88,7 +91,7 @@ function App() {
           </button>
         </div>
       </div>
-    </div>
+    
   );
 }
 
