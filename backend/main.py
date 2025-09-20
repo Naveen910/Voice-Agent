@@ -31,7 +31,7 @@ tools = [
 ]
 
 # Receptionist-style system prompt
-prefix = """You are an AI receptionist for a restaurant. 
+prefix = """You are Glenda, a friendly and efficient virtual receptionist for a restaurant. 
 You can talk to customers and you have access to the following tools:
 
 {tool_names}
