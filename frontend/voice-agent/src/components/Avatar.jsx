@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { VRM, VRMSchema } from "@pixiv/three-vrm";
+import { VRMLoaderPlugin, VRMExpressionPresetName } from "@pixiv/three-vrm";
 
 const Avatar = ({ audioStream, expression }) => {
   const containerRef = useRef(null);
@@ -25,13 +25,23 @@ const Avatar = ({ audioStream, expression }) => {
     scene.add(light);
 
     const loader = new GLTFLoader();
-    loader.load("/models/avatar.vrm", (gltf) => {
-      VRM.from(gltf).then((loadedVrm) => {
-        vrmRef.current = loadedVrm;
-        scene.add(loadedVrm.scene);
-        console.log("VRM model loaded");
-      });
-    });
+loader.register((parser) => new VRMLoaderPlugin(parser));
+
+loader.load(
+  "/models/Glenda.vrm",
+  (gltf) => {
+    const vrm = gltf.userData.vrm; 
+    scene.add(vrm.scene);
+    vrmRef.current = vrm;
+    vrm.scene.rotation.y = Math.PI; // 180 degrees
+    camera.position.set(0, 1.4, 2.5);
+    camera.lookAt(0, 1.4, 0); 
+    console.log("✅ VRM model loaded:", vrm);
+  },
+  (progress) => console.log("Loading model...", (progress.loaded / progress.total) * 100, "%"),
+  (error) => console.error(error)
+);
+
 
     const animate = () => {
       requestAnimationFrame(animate);
@@ -61,12 +71,13 @@ const Avatar = ({ audioStream, expression }) => {
       analyser.getByteFrequencyData(dataArray);
       const volume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
 
-      if (vrmRef.current.blendShapeProxy) {
-        vrmRef.current.blendShapeProxy.setValue(
-          VRMSchema.BlendShapePresetName.A,
+      if (vrmRef.current?.expressionManager) {
+          vrmRef.current.expressionManager.setValue(
+          VRMExpressionPresetName.A,
           Math.min(volume / 100, 1.0)
-        );
-      }
+          );
+        }
+
       requestAnimationFrame(updateLipSync);
     };
     updateLipSync();
@@ -76,20 +87,21 @@ const Avatar = ({ audioStream, expression }) => {
   useEffect(() => {
     if (!vrmRef.current) return;
 
-    if (vrmRef.current.blendShapeProxy) {
-      vrmRef.current.blendShapeProxy.setValue(
-        VRMSchema.BlendShapePresetName.Happy,
-        expression === "smile" ? 1.0 : 0.0
-      );
-      vrmRef.current.blendShapeProxy.setValue(
-        VRMSchema.BlendShapePresetName.Angry,
-        expression === "angry" ? 1.0 : 0.0
-      );
-      vrmRef.current.blendShapeProxy.setValue(
-        VRMSchema.BlendShapePresetName.Neutral,
-        expression === "neutral" ? 1.0 : 0.0
-      );
-    }
+    if (vrmRef.current?.expressionManager) {
+  vrmRef.current.expressionManager.setValue(
+    VRMExpressionPresetName.Happy,
+    expression === "smile" ? 1.0 : 0.0
+  );
+  vrmRef.current.expressionManager.setValue(
+    VRMExpressionPresetName.Angry,
+    expression === "angry" ? 1.0 : 0.0
+  );
+  vrmRef.current.expressionManager.setValue(
+    VRMExpressionPresetName.Neutral,
+    expression === "neutral" ? 1.0 : 0.0
+  );
+}
+
   }, [expression]);
 
   return <div ref={containerRef} />;
