@@ -3,46 +3,69 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMExpressionPresetName } from "@pixiv/three-vrm";
 
-const Avatar = ({ audioStream, expression }) => {
+const Avatar = ({ audioStream, expression, handsPose = "wave" }) => {
   const containerRef = useRef(null);
   const vrmRef = useRef(null);
+  const rendererRef = useRef(null);
+  const waveAnimRef = useRef(null);
 
   useEffect(() => {
-    let renderer, scene, camera, clock;
+    if (!containerRef.current) return;
 
-    scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
-    camera.position.set(0, 1.4, 2.5);
+    // --- Scene & Camera ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 20);
+    camera.position.set(0, 1.6, 2.5);  // Waist-up framing
+    camera.lookAt(0, 1.2, 0);
 
-    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    // --- Renderer ---
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(400, 400);
     containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
 
-    clock = new THREE.Clock();
-
-    const light = new THREE.DirectionalLight(0xffffff);
+    // --- Light ---
+    const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(1, 1, 1).normalize();
     scene.add(light);
 
+    // --- Clock ---
+    const clock = new THREE.Clock();
+
+    // --- Load VRM ---
     const loader = new GLTFLoader();
-loader.register((parser) => new VRMLoaderPlugin(parser));
+    loader.register((parser) => new VRMLoaderPlugin(parser));
 
-loader.load(
-  "/models/Glenda.vrm",
-  (gltf) => {
-    const vrm = gltf.userData.vrm; 
-    scene.add(vrm.scene);
-    vrmRef.current = vrm;
-    vrm.scene.rotation.y = Math.PI; // 180 degrees
-    camera.position.set(0, 1.4, 2.5);
-    camera.lookAt(0, 1.4, 0); 
-    console.log("✅ VRM model loaded:", vrm);
-  },
-  (progress) => console.log("Loading model...", (progress.loaded / progress.total) * 100, "%"),
-  (error) => console.error(error)
-);
+    loader.load(
+      "/models/Glenda.vrm",
+      (gltf) => {
+        const vrm = gltf.userData.vrm;
 
+        // Remove previous VRM if exists
+        if (vrmRef.current) {
+          scene.remove(vrmRef.current.scene);
+          vrmRef.current = null;
+        }
 
+        // Add new VRM
+        scene.add(vrm.scene);
+        vrmRef.current = vrm;
+
+        // Neutral pose & forward
+        vrm.scene.rotation.y = Math.PI;
+        vrm.scene.position.set(0, 0, 1);
+
+        console.log("✅ VRM loaded (single instance)", vrm);
+
+        // Apply initial hands pose
+        applyHandsPose(handsPose);
+      },
+      (progress) =>
+        console.log("Loading VRM...", ((progress.loaded / progress.total) * 100).toFixed(2), "%"),
+      (error) => console.error("VRM load error:", error)
+    );
+
+    // --- Animation Loop ---
     const animate = () => {
       requestAnimationFrame(animate);
       if (vrmRef.current) vrmRef.current.update(clock.getDelta());
@@ -50,14 +73,21 @@ loader.load(
     };
     animate();
 
+    // --- Cleanup ---
     return () => {
-      if (renderer) renderer.dispose();
+      if (vrmRef.current) scene.remove(vrmRef.current.scene);
+      if (renderer) {
+        renderer.dispose();
+        renderer.domElement.remove();
+      }
+      if (waveAnimRef.current) cancelAnimationFrame(waveAnimRef.current);
     };
   }, []);
 
-  // Lip Sync
+  // --- Lip Sync ---
   useEffect(() => {
     if (!audioStream) return;
+
     const audioCtx = new AudioContext();
     const source = audioCtx.createMediaStreamSource(audioStream);
     const analyser = audioCtx.createAnalyser();
@@ -71,38 +101,82 @@ loader.load(
       analyser.getByteFrequencyData(dataArray);
       const volume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
 
-      if (vrmRef.current?.expressionManager) {
-          vrmRef.current.expressionManager.setValue(
+      if (vrmRef.current.expressionManager) {
+        vrmRef.current.expressionManager.setValue(
           VRMExpressionPresetName.A,
-          Math.min(volume / 100, 1.0)
-          );
-        }
-
+          Math.min(volume / 100, 1)
+        );
+      }
       requestAnimationFrame(updateLipSync);
     };
     updateLipSync();
   }, [audioStream]);
 
-  // Expression Handling
+  // --- Expressions ---
   useEffect(() => {
-    if (!vrmRef.current) return;
+    if (!vrmRef.current || !vrmRef.current.expressionManager) return;
 
-    if (vrmRef.current?.expressionManager) {
-  vrmRef.current.expressionManager.setValue(
-    VRMExpressionPresetName.Happy,
-    expression === "smile" ? 1.0 : 0.0
-  );
-  vrmRef.current.expressionManager.setValue(
-    VRMExpressionPresetName.Angry,
-    expression === "angry" ? 1.0 : 0.0
-  );
-  vrmRef.current.expressionManager.setValue(
-    VRMExpressionPresetName.Neutral,
-    expression === "neutral" ? 1.0 : 0.0
-  );
-}
-
+    const em = vrmRef.current.expressionManager;
+    em.setValue(VRMExpressionPresetName.Happy, expression === "smile" ? 1 : 0);
+    em.setValue(VRMExpressionPresetName.Angry, expression === "angry" ? 1 : 0);
+    em.setValue(VRMExpressionPresetName.Neutral, expression === "neutral" ? 1 : 0);
   }, [expression]);
+
+  // --- Hands Pose ---
+  const applyHandsPose = (pose) => {
+    if (!vrmRef.current || !vrmRef.current.humanoid) return;
+    const humanoid = vrmRef.current.humanoid;
+
+    // Cancel previous wave animation
+    if (waveAnimRef.current) cancelAnimationFrame(waveAnimRef.current);
+
+    switch (pose) {
+      case "down":
+        humanoid.setPose({
+          rightUpperArm: { x: 0, y: 0, z: 0 },
+          leftUpperArm: { x: 0, y: 0, z: 0 },
+          rightLowerArm: { x: 0, y: 0, z: 0 },
+          leftLowerArm: { x: 0, y: 0, z: 0 },
+        });
+        break;
+
+      case "up":
+        humanoid.setPose({
+          rightUpperArm: { x: -1.0, y: 0, z: 0.2 },
+          leftUpperArm: { x: -1.0, y: 0, z: -0.2 },
+          rightLowerArm: { x: -0.5, y: 0, z: 0 },
+          leftLowerArm: { x: -0.5, y: 0, z: 0 },
+        });
+        break;
+
+      case "wave":
+        humanoid.setPose({
+          rightUpperArm: { x: -1.0, y: 0, z: 0.2 },
+          rightLowerArm: { x: -0.8, y: 0, z: 0 },
+          leftUpperArm: { x: 0, y: 0, z: 0 },
+          leftLowerArm: { x: 0, y: 0, z: 0 },
+        });
+
+        let t = 0;
+        const waveAnim = () => {
+          if (!vrmRef.current) return;
+          const hand = humanoid.getBoneNode("rightHand");
+          if (hand) hand.rotation.z = Math.sin(t) * 0.5;
+          t += 0.1;
+          waveAnimRef.current = requestAnimationFrame(waveAnim);
+        };
+        waveAnim();
+        break;
+
+      default:
+        console.warn("Unknown hands pose:", pose);
+    }
+  };
+
+  // Apply hands pose whenever prop changes
+  useEffect(() => {
+    applyHandsPose(handsPose);
+  }, [handsPose]);
 
   return <div ref={containerRef} />;
 };

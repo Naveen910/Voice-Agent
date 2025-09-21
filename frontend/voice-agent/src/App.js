@@ -72,7 +72,7 @@ function App() {
   return (
     <div className="app-container">
       {/* Avatar */}
-      <Avatar audioStream={audioStream} expression={expression} />
+      <Avatar audioStream={audioStream} expression={expression} handsPose="wave" />
 
       
 
