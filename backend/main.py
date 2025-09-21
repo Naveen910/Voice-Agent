@@ -62,7 +62,7 @@ prompt = ZeroShotAgent.create_prompt(
 
 
 # LangChain Agent
-memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+memory = ConversationBufferMemory(memory_key="history", return_messages=True)
 agent = initialize_agent(
     tools,
     llm,

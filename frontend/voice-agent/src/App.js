@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Mic, X } from "lucide-react";
 import "./App.css";
-import AnimeSpeaker from "./components/AnimeSpeaker";
+import Avatar from "./components/Avatar";
 
 function App() {
   const [isListening, setIsListening] = useState(false);
@@ -72,7 +72,7 @@ function App() {
   return (
     <div className="app-container">
       {/* Avatar */}
-      <AnimeSpeaker audioStream={audioStream} expression={expression} />
+      <Avatar audioStream={audioStream} expression={expression} />
 
       
 
