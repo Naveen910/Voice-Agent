@@ -1,27 +1,39 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const ChatContext = createContext();
 
 export const ChatProvider = ({ children }) => {
-  const chat = async (message) => {
+  const [messages, setMessages] = useState([]);
+  const [message, setMessage] = useState();
+  const [loading, setLoading] = useState(false);
+  const [cameraZoomed, setCameraZoomed] = useState(true);
+
+  const chat = async (userMessage) => {
     setLoading(true);
+
+    // 1. Add user’s message to state
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+
+    // 2. Send to backend
     const data = await fetch(`${backendUrl}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message: userMessage }),
     });
-    const resp = (await data.json()).messages;
-    setMessages((messages) => [...messages, ...resp]);
+
+    // 3. Parse backend reply
+    const resp = (await data.json()).messages; // always an array
+    resp.forEach((reply) => {
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    });
+
     setLoading(false);
   };
-  const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState();
-  const [loading, setLoading] = useState(false);
-  const [cameraZoomed, setCameraZoomed] = useState(true);
+
   const onMessagePlayed = () => {
     setMessages((messages) => messages.slice(1));
   };
@@ -39,6 +51,7 @@ export const ChatProvider = ({ children }) => {
       value={{
         chat,
         message,
+        messages,   // expose all messages so UI can render chat history
         onMessagePlayed,
         loading,
         cameraZoomed,
