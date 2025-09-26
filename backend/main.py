@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from langchain_community.llms import Ollama
 from langchain.agents import initialize_agent, AgentType, ZeroShotAgent
@@ -7,13 +8,16 @@ from langchain.prompts import PromptTemplate
 from tools.google_calendar import google_calendar_tool
 from tools.google_sheets import google_sheets_menu_tool
 from langchain.memory import ConversationBufferMemory
-from typing import List
+import base64
+
+
+from tts import generate_tts_audio, generate_lipsync_cues
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], 
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,35 +74,49 @@ agent = initialize_agent(
     memory=memory
 )
 
-# Request/Response schema
+# Request schema
 class ChatRequest(BaseModel):
     message: str
 
-class Message(BaseModel):
-    role: str   # "user" or "assistant"
-    content: str
 
-class ChatResponse(BaseModel):
-    messages: List[Message]
-
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat")
 async def chat(request: ChatRequest):
     try:
+        # 1️⃣ Get assistant reply text
         result = agent.invoke({"input": request.message})
-        reply = result.get("output", "Sorry, I couldn’t process that request.")
-        return {
-            "messages": [
-                {"role": "user", "content": request.message},
-                {"role": "assistant", "content": reply}
-            ]
+        reply_text = result.get("output", "Sorry, I couldn’t process that request.")
+
+        # 2️⃣ Generate TTS audio (bytes)
+        audio_bytes = generate_tts_audio(reply_text)
+        audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+
+        # 3️⃣ Generate lip sync cues
+        lipsync = generate_lipsync_cues(reply_text, audio_bytes)
+
+        # 4️⃣ Response format for Avatar.jsx
+        message = {
+            "audio": audio_base64,   # base64 mp3
+            "lipsync": {"mouthCues": lipsync},
+            "animation": "Talking",
+            "facialExpression": "default",
+            "text": reply_text
         }
+
+        return JSONResponse(content={"message": message})
+
     except Exception as e:
-        return {
-            "messages": [
-                {"role": "user", "content": request.message},
-                {"role": "assistant", "content": f"Apologies, something went wrong: {str(e)}"}
-            ]
-        }
+        return JSONResponse(
+            content={
+                "message": {
+                    "audio": "",
+                    "lipsync": {"mouthCues": []},
+                    "animation": "Idle",
+                    "facialExpression": "default",
+                    "text": f"Error: {str(e)}"
+                }
+            }
+        )
+
 
 if __name__ == "__main__":
     import uvicorn
