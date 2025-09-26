@@ -11,7 +11,7 @@ from langchain.memory import ConversationBufferMemory
 import base64
 
 
-from tts import generate_tts_audio, generate_lipsync_cues
+from speech import generate_tts_audio, generate_lipsync_cues
 
 app = FastAPI()
 
@@ -86,12 +86,13 @@ async def chat(request: ChatRequest):
         result = agent.invoke({"input": request.message})
         reply_text = result.get("output", "Sorry, I couldn’t process that request.")
 
-        # 2️⃣ Generate TTS audio (bytes)
-        audio_bytes = generate_tts_audio(reply_text)
-        audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
-
+        # 2️⃣ Generate TTS audio (MP3 + WAV)
+        mp3_bytes, wav_bytes = generate_tts_audio(reply_text)
+        audio_base64 = base64.b64encode(mp3_bytes).decode("utf-8")
+        
         # 3️⃣ Generate lip sync cues
-        lipsync = generate_lipsync_cues(reply_text, audio_bytes)
+        lipsync = generate_lipsync_cues(reply_text, wav_bytes)
+
 
         # 4️⃣ Response format for Avatar.jsx
         message = {
@@ -102,7 +103,7 @@ async def chat(request: ChatRequest):
             "text": reply_text
         }
 
-        return JSONResponse(content={"message": message})
+        return JSONResponse(content={"messages": message})
 
     except Exception as e:
         return JSONResponse(
