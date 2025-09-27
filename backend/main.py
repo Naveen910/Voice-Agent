@@ -10,7 +10,6 @@ from tools.google_sheets import google_sheets_menu_tool
 from langchain.memory import ConversationBufferMemory
 import base64
 
-
 from speech import generate_tts_audio, generate_lipsync_cues
 
 app = FastAPI()
@@ -34,7 +33,6 @@ tools = [
     google_sheets_menu_tool,
 ]
 
-# Receptionist-style system prompt
 prefix = """You are Glenda, a friendly and efficient virtual receptionist for a restaurant. 
 You can talk to customers and you have access to the following tools:
 
@@ -62,7 +60,6 @@ prompt = ZeroShotAgent.create_prompt(
     input_variables=["input", "agent_scratchpad"],
 )
 
-# LangChain Agent
 memory = ConversationBufferMemory(memory_key="history", return_messages=True)
 agent = initialize_agent(
     tools,
@@ -74,7 +71,6 @@ agent = initialize_agent(
     memory=memory
 )
 
-# Request schema
 class ChatRequest(BaseModel):
     message: str
 
@@ -82,41 +78,41 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat(request: ChatRequest):
     try:
-        # 1️⃣ Get assistant reply text
+        # 1️⃣ Generate assistant reply
         result = agent.invoke({"input": request.message})
         reply_text = result.get("output", "Sorry, I couldn’t process that request.")
 
-        # 2️⃣ Generate TTS audio (MP3 + WAV)
+        # 2️⃣ TTS audio (MP3 + WAV)
         mp3_bytes, wav_bytes = generate_tts_audio(reply_text)
         audio_base64 = base64.b64encode(mp3_bytes).decode("utf-8")
-        
-        # 3️⃣ Generate lip sync cues
+
+        # 3️⃣ Lip sync cues
         lipsync = generate_lipsync_cues(reply_text, wav_bytes)
 
+        # 4️⃣ Wrap in array to match Node backend format
+        messages = [
+            {
+                "text": reply_text,
+                "audio": audio_base64,
+                "lipsync": {"mouthCues": lipsync},
+                "facialExpression": "smile",
+                "animation": "Talking_1"
+            }
+        ]
 
-        # 4️⃣ Response format for Avatar.jsx
-        message = {
-            "audio": audio_base64,   # base64 mp3
-            "lipsync": {"mouthCues": lipsync},
-            "animation": "Talking",
-            "facialExpression": "default",
-            "text": reply_text
-        }
-
-        return JSONResponse(content={"messages": message})
+        return JSONResponse(content={"messages": messages})
 
     except Exception as e:
-        return JSONResponse(
-            content={
-                "message": {
-                    "audio": "",
-                    "lipsync": {"mouthCues": []},
-                    "animation": "Idle",
-                    "facialExpression": "default",
-                    "text": f"Error: {str(e)}"
-                }
+        messages = [
+            {
+                "text": f"Error: {str(e)}",
+                "audio": "",
+                "lipsync": {"mouthCues": []},
+                "facialExpression": "smile",
+                "animation": "Talking_1"
             }
-        )
+        ]
+        return JSONResponse(content={"messages": messages})
 
 
 if __name__ == "__main__":
