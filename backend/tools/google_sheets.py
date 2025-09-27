@@ -35,6 +35,6 @@ def google_sheets_menu_tool(input_str: str) -> str:
             return "Sorry, the menu is currently empty."
         
         menu = "\n".join([f"{row[0]} - {row[1]}" for row in values if len(row) >= 2])
-        return f"Here’s our menu:\n{menu}"
+        return f"Here our menu:\n{menu}"
     except Exception as e:
         return f"Error fetching menu: {str(e)}"
