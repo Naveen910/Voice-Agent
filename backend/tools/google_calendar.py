@@ -1,4 +1,4 @@
-from langchain.agents import Tool
+from langchain.tools import Tool
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from dateparser.search import search_dates
@@ -14,26 +14,27 @@ SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, "..", "..", "..", "keys", "service
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 CALENDAR_ID = "nav.fortesting@gmail.com"
 
-
+# ----------------------------
+# Google Calendar service
+# ----------------------------
 def get_calendar_service():
     creds = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES
     )
-    service = build("calendar", "v3", credentials=creds)
-    return service
+    return build("calendar", "v3", credentials=creds)
 
-
+# ----------------------------
+# Extractors
+# ----------------------------
 def extract_party_size(event_text: str):
     match = re.search(r"\bfor\s+(\d+)", event_text, re.IGNORECASE)
-    if match:
-        return int(match.group(1))
-    return None
-
+    return int(match.group(1)) if match else None
 
 def extract_datetime(event_text: str):
     cleaned_text = re.sub(r"\bfor\s+\d+\b", "", event_text, flags=re.IGNORECASE).strip()
     weekdays = {day.lower(): i for i, day in enumerate(calendar.day_name)}
     tokens = cleaned_text.lower().split()
+
     weekday_found = None
     for token in tokens:
         if token in weekdays:
@@ -49,11 +50,10 @@ def extract_datetime(event_text: str):
         time_match = re.search(r"\b\d{1,2}(:\d{2})?\s?(am|pm)\b", cleaned_text, re.IGNORECASE)
         time_str = time_match.group(0) if time_match else "7 pm"
         datetime_str = f"{target_date.strftime('%Y-%m-%d')} {time_str}"
-        parsed_dt = dateparser.parse(
+        return dateparser.parse(
             datetime_str,
             settings={"TIMEZONE": "Asia/Kolkata", "RETURN_AS_TIMEZONE_AWARE": True},
         )
-        return parsed_dt
 
     results = search_dates(
         cleaned_text,
@@ -63,29 +63,20 @@ def extract_datetime(event_text: str):
             "PREFER_DATES_FROM": "future",
         },
     )
-    if results:
-        return results[0][1]
-
-    return None
-
+    return results[0][1] if results else None
 
 def extract_name(event_text: str):
-    """Extract customer name from phrases like 'my name is ...' or 'this is ...'"""
     match = re.search(r"(?:my name is|this is)\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)", event_text, re.IGNORECASE)
-    if match:
-        return match.group(1)
-    return None
-
+    return match.group(1) if match else None
 
 def extract_phone(event_text: str):
-    """Extract phone numbers from text"""
     match = re.search(r"(\+?\d{1,4}[\s-]?\d{6,12})", event_text)
-    if match:
-        return match.group(1)
-    return None
+    return match.group(1) if match else None
 
-
-def create_event(event_text: str) -> str:
+# ----------------------------
+# Event creation (returns dict)
+# ----------------------------
+def create_event(event_text: str) -> dict:
     service = get_calendar_service()
 
     party_size = extract_party_size(event_text)
@@ -94,7 +85,7 @@ def create_event(event_text: str) -> str:
     phone = extract_phone(event_text)
 
     if not parsed_dt:
-        return "Sorry, I couldn’t understand the date and time. Could you please repeat?"
+        return {"status": "error", "message": "Could not parse date/time from request."}
 
     start_time = parsed_dt
     end_time = start_time + datetime.timedelta(hours=1)
@@ -102,28 +93,38 @@ def create_event(event_text: str) -> str:
     title = f"Table for {party_size}" if party_size else "Restaurant Reservation"
     description_lines = []
     if party_size:
-        description_lines.append(f"Number of guests: {party_size}")
+        description_lines.append(f"Guests: {party_size}")
     if customer_name:
-        description_lines.append(f"Customer Name: {customer_name}")
+        description_lines.append(f"Name: {customer_name}")
     if phone:
         description_lines.append(f"Phone: {phone}")
     description_lines.append(f"Original request: {event_text}")
     description = "\n".join(description_lines)
 
-    event = {
+    event_body = {
         "summary": title,
         "description": description,
         "start": {"dateTime": start_time.isoformat(), "timeZone": "Asia/Kolkata"},
         "end": {"dateTime": end_time.isoformat(), "timeZone": "Asia/Kolkata"},
     }
 
-    created_event = service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
-    return f"Reservation confirmed: {created_event.get('summary')} at {created_event['start']['dateTime']}"
+    try:
+        created_event = service.events().insert(calendarId=CALENDAR_ID, body=event_body).execute()
+        return {
+            "status": "confirmed",
+            "date": created_event['start']['dateTime'],
+            "guests": party_size if party_size else "unspecified",
+            "name": customer_name if customer_name else "unspecified",
+            "phone": phone if phone else "unspecified",
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
-
+# ----------------------------
+# LangChain Tool
+# ----------------------------
 google_calendar_tool = Tool(
     name="Reservation Calendar",
-    func=lambda x: create_event(x),
-    description="Use this tool to check availability and book table reservations for customers.",
-    return_direct=True,
+    func=create_event,
+    description="Check availability and book table reservations for customers. Returns structured reservation details (status, date, guests, name, phone).",
 )
