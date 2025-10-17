@@ -9,6 +9,7 @@ from tools.google_sheets import google_sheets_menu_tool
 from langchain.memory import ConversationBufferMemory
 import base64
 from speech import generate_tts_audio, generate_lipsync_cues
+from langchain.tools import Tool
 
 # ----------------------------
 # FastAPI Setup
@@ -31,10 +32,21 @@ llm = Ollama(
     base_url="http://192.168.1.4:11434"
 )
 
+
+def casual_chat(input_str: str):
+    # Just return the message as-is
+    return input_str
+
+casual_chat_tool = Tool(
+    name="Casual Chat",
+    func=casual_chat,
+    description="Handle casual greetings or small talk. Return user-friendly text."
+)
+
 # ----------------------------
 # Tools
 # ----------------------------
-tools = [google_calendar_tool, google_sheets_menu_tool]
+tools = [google_calendar_tool, google_sheets_menu_tool, casual_chat_tool]
 
 # ----------------------------
 # Memory
@@ -65,7 +77,6 @@ Instructions:
 - If information is missing, make a smart assumption instead of asking again.
 - Never expose the tool name or raw tool output directly. Convert into a natural human-friendly response.
 - The final answer after tool calls should always be short and feel like natural conversation.
-- Do not use tools if not needed. If the user just wants to chat, respond naturally without tools.
 
 Tool call format:
 Thought: [reasoning]
@@ -133,4 +144,4 @@ async def chat(request: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=5000, reload=True)
+    uvicorn.run("mother:app", host="127.0.0.1", port=5000, reload=True)
